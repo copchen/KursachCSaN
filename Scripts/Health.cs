@@ -17,10 +17,12 @@ public class Health : MonoBehaviour
 
     private GameManagerMulty gManager;
     private bool isDead;
+    private bool isOwner;
 
     void Start()
     {
         gManager = GameObject.FindObjectOfType<GameManagerMulty>();
+        isOwner = (side == (FindObjectOfType<NetworkConnector>().isHost ? "A" : "B"));
         if (healthColor)
             healthColor.material.color = Color.green;
     }
@@ -39,37 +41,66 @@ public class Health : MonoBehaviour
 
         if (targetType == TargetType.Enemy && healthValue <= 0)
         {
-            if (GetComponent<CapsuleCollider>()) GetComponent<CapsuleCollider>().enabled = false;
-            if (GetComponent<Weapon>()) GetComponent<Weapon>().canShoot = false;
-            gManager.AddCoins(destroyAwardedCoins);
-
-            if (damageParticle)
-                Instantiate(damageParticle, transform.position, transform.rotation);
-
-            if (healthColor && healthColor.transform.parent) Destroy(healthColor.transform.parent.gameObject);
-
-            if (GetComponent<Weapon>()) GetComponent<Weapon>().shootingDelay = 999f;
-
             if (!isDead)
             {
                 isDead = true;
-                StartCoroutine(Destroy_Delay());
+
+                
+                bool isOwner = (side == (FindObjectOfType<NetworkConnector>().isHost ? "A" : "B"));
+                if (isOwner)
+                {
+                    NetworkConnector.Instance.SendMessageToPeer($"ENEMY_DEAD;{gameObject.name}");
+                }
+
+                HandleDeath();
             }
         }
 
-        if (targetType == TargetType.Defender && healthValue <= 0)
+        if (targetType == TargetType.Defender && healthValue <= 0 && !isDead)
         {
-            if (!isDead)
-            {
-                isDead = true;
-                StartCoroutine(Destroy_Delay());
-            }
+            isDead = true;
+            StartCoroutine(Destroy_Delay());
         }
     }
+
 
     IEnumerator Destroy_Delay()
     {
         yield return new WaitForSeconds(destroyDelay);
         Destroy(gameObject);
     }
+
+
+    public void RemoteKill()
+    {
+        if (!isDead)
+        {
+            isDead = true;
+            HandleDeath();
+        }
+    }
+
+    private void HandleDeath()
+    {
+        if (GetComponent<CapsuleCollider>())
+            GetComponent<CapsuleCollider>().enabled = false;
+
+        if (GetComponent<Weapon>())
+        {
+            GetComponent<Weapon>().canShoot = false;
+            GetComponent<Weapon>().shootingDelay = 999f;
+        }
+
+        gManager.AddCoins(destroyAwardedCoins);
+
+        if (damageParticle)
+            Instantiate(damageParticle, transform.position, transform.rotation);
+
+        if (healthColor && healthColor.transform.parent)
+            Destroy(healthColor.transform.parent.gameObject);
+
+        StartCoroutine(Destroy_Delay());
+    }
+
+
 }

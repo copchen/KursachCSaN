@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Globalization;
 using UnityEngine;
 
 public enum ShootingMode
@@ -14,6 +15,7 @@ public class Weapon : MonoBehaviour
     public Transform shootPoint;
     public float force = 100f;
     public float shootingDelay = 1f;
+    private bool isOwner;
 
     [Header("Sword Settings")]
     public int SwordDamage = 1;
@@ -30,6 +32,11 @@ public class Weapon : MonoBehaviour
 
     GameManagerMulty gameManager;
 
+
+    void Awake()
+    {
+        isOwner = GetComponent<Health>()?.side == (FindObjectOfType<NetworkConnector>()?.isHost == true ? "A" : "B");
+    }
     IEnumerator Start()
     {
         audioSource = GetComponent<AudioSource>();
@@ -43,7 +50,24 @@ public class Weapon : MonoBehaviour
             {
                 if (shootingMode == ShootingMode.Gun)
                 {
-                    GameObject bullet = Instantiate(projectile, shootPoint.position, shootPoint.rotation);
+                    var bullet = Instantiate(projectile, shootPoint.position, shootPoint.rotation);
+                    var health = GetComponent<Health>();
+                    if (bullet.TryGetComponent<Projectile>(out var proj) && health != null)
+                    {
+                        proj.GetComponent<Projectile>().SendMessage("SetSide", health.side, SendMessageOptions.DontRequireReceiver);
+                    }
+                    if (bullet.TryGetComponent(out Projectile owner))
+                        owner.isOwner = isOwner;
+
+                    if (isOwner)
+                    {
+                        Vector3 shootPos = shootPoint.position;
+                        Vector3 shootDir = shootPoint.forward;
+
+                        string msg = $"DEF_SHOOT;{shootPos.x:F2};{shootPos.y:F2};{shootPos.z:F2};{shootDir.x:F2};{shootDir.y:F2};{shootDir.z:F2}";
+                        NetworkConnector.Instance.SendUDP(msg);
+                    }
+
                     bullet.GetComponent<Rigidbody>().AddForce(shootPoint.forward * force);
 
                     if (secondProjectile)
@@ -64,7 +88,7 @@ public class Weapon : MonoBehaviour
                     if (TryGetComponent(out AnimationList animList) && animList.actor)
                         animList.actor.CrossFade(animList.fireClip);
 
-                    gameManager.Reduce_Tower_Health(gameManager.MySide, SwordDamage); 
+                    gameManager.Reduce_Tower_Health(gameManager.MySide, SwordDamage);
                 }
             }
         }

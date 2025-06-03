@@ -24,25 +24,39 @@ public class EnemySpawnerMulti : MonoBehaviour
         NetworkConnector.OnMessageReceived -= OnMessageReceived;
     }
 
+    GameManagerMulty g = GameObject.FindObjectOfType<GameManagerMulty>();
     public void SpawnHostEnemy()
     {
-        int globalEnemyIndex = Random.Range(6, 12); // A → B
-        SpawnOneEnemy(globalEnemyIndex);
+        
+            int globalEnemyIndex = Random.Range(6, 12); // A → B
+            SpawnOneEnemy(globalEnemyIndex);
+           
     }
 
     public void SpawnClientEnemy()
     {
-        int globalEnemyIndex = Random.Range(0, 6); // B → A
-        SpawnOneEnemy(globalEnemyIndex);
+            int globalEnemyIndex = Random.Range(0, 6); // B → A
+            SpawnOneEnemy(globalEnemyIndex);
     }
 
     public void SpawnOneEnemy(int globalEnemyIndex)
     {
+        var gm = FindObjectOfType<GameManagerMulty>();
+        int cost = 1000;
+
+            if (gm.TotalCoins < cost)
+        {
+           
+            return;
+        };
+
         bool isHost = net.isHost;
 
         int spawnIndex = isHost
             ? Random.Range(6, 12)
             : Random.Range(0, 6);
+
+        gm.ReduceCoins(cost);
 
         string enemyId = $"Enemy_{globalEnemyIndex}_{spawnIndex}_{Random.Range(1000, 9999)}";
         string msg = $"SPAWN_ENEMY_GLOBAL;{globalEnemyIndex};{spawnIndex};{enemyId}";
@@ -103,6 +117,12 @@ public class EnemySpawnerMulti : MonoBehaviour
         {
             mover.enabled = true; 
         }
+
+        if (enemy.TryGetComponent(out Health health))
+        {
+            health.side = side;  
+        }
+
 
         if (enemy.TryGetComponent(out EnemySyncTracker tracker))
         {

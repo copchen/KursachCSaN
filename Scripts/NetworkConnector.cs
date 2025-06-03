@@ -24,7 +24,8 @@ public class NetworkConnector : MonoBehaviour
 
     public static Action<string> OnMessageReceived;
 
-   
+    public static NetworkConnector Instance { get; private set; }
+
     private UdpClient udpSender;
     private UdpClient udpReceiver;
     private Thread udpListenThread;
@@ -108,6 +109,7 @@ public class NetworkConnector : MonoBehaviour
                         string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
                         Debug.Log(" TCP Received: " + message);
                         OnMessageReceived?.Invoke(message);
+                        SpawnMsg(message);
                     }
                 }
                 catch (Exception ex)
@@ -210,7 +212,7 @@ public class NetworkConnector : MonoBehaviour
             Destroy(gameObject);
             return;
         }
-
+        Instance = this;
         DontDestroyOnLoad(gameObject);
     }
 
@@ -234,4 +236,35 @@ public class NetworkConnector : MonoBehaviour
             Debug.LogWarning("Cleanup failed: " + e.Message);
         }
     }
+
+
+    void SpawnMsg(string message)
+    {
+        if (message.StartsWith("SPAWN_DEFENDER"))
+        {
+            string[] parts = message.Split(';');
+            if (parts.Length < 7) return;
+
+            int defIndex = int.Parse(parts[1]);
+            float x = float.Parse(parts[2]);
+            float y = float.Parse(parts[3]);
+            float z = float.Parse(parts[4]);
+            float rotY = float.Parse(parts[5]);
+            string side = parts[6];
+
+            GameManagerMulty gm = FindObjectOfType<GameManagerMulty>();
+            if (gm != null)
+            {
+                Vector3 pos = new Vector3(x, y, z);
+                Quaternion rot = Quaternion.Euler(0, rotY, 0);
+                gm.SpawnDefenderRemote(defIndex, pos, rot, side);
+            }
+        }
+
+    }
+
+
+
+
+
 }

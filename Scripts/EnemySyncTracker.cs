@@ -56,7 +56,7 @@ public class EnemySyncTracker : MonoBehaviour
         if (!isOwner)
         {
             
-            transform.position = Vector3.Lerp(transform.position, pos, Time.deltaTime * 10f);
+            transform.position = Vector3.Lerp(transform.position, pos, Time.deltaTime * 100f);
         }
     }
 }
